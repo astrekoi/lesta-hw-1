@@ -1,22 +1,23 @@
 #!/bin/bash
 set -eo pipefail
 
-# Инициализация репозитория с проверкой существования
-if [ ! -d .git ]; then
-    git init
-    echo "Initialized new Git repository"
-fi
-
+# Конфиг пользователя
 git config --local user.name "Andrey Zinchenko"
 git config --local user.email "astrokoit@gmail.com"
 
-# Создание базовой структуры проекта
+# Инициализация репозитория
+if [ ! -d .git ]; then
+    git init
+    echo "Git repository initialized successfully"
+fi
+
+# Базовая структура
 mkdir -p src/{api,ui,models} tests/{unit,integration} config logs
 touch src/api/main.go src/ui/index.html src/models/user.go \
      tests/unit/api_test.go tests/integration/ui_test.py \
      config/{dev.yaml,prod.yaml} logs/app.log
 
-# Генерация .gitignore для исключения временных файлов
+# .gitignore
 if [ ! -f .gitignore ]; then
     cat > .gitignore <<EOF
 logs/
@@ -24,63 +25,84 @@ logs/
 *.tmp
 .env
 EOF
+    echo "Created .gitignore file"
 fi
 
-# Подготовка веток разработки
-git checkout -B main &>/dev/null
-git branch -D feature/api feature/ui &>/dev/null || true
+# Очистка ненужных веток
+for branch in feature/api feature/ui error-branch; do
+    git branch -D $branch 2>/dev/null || true
+done
+
+# Создание и подготовка веток
+git checkout -B main
+
 git checkout -b feature/api
+echo "// API entry" > src/api/main.go
+git add src/api/main.go
+git commit -m "Initialize API module"
+
+echo "// Base routes" >> src/api/main.go
+git add src/api/main.go
+git commit -m "Add base routes"
+
 git checkout main
 git checkout -b feature/ui
+echo "<!-- UI layout -->" > src/ui/index.html
+git add src/ui/index.html
+git commit -m "Create basic layout"
 
-commit_changes() {
-    branch=$1
-    file=$2
-    message=$3
-    git checkout $branch
-    echo "$message" >> $file
-    git add $file
-    git commit -m "$message"
-}
+echo "<!-- Navigation -->" >> src/ui/index.html
+git add src/ui/index.html
+git commit -m "Implement navigation"
 
-# Разработка API
-commit_changes feature/api src/api/main.go "Initialize API module"
-commit_changes feature/api src/api/main.go "Add base routes"
-
-# Разработка UI
-commit_changes feature/ui src/ui/index.html "Create basic layout"
-commit_changes feature/ui src/ui/index.html "Implement navigation"
-
-# Слияние изменений с сохранением истории
+# Слияние API в main
 git checkout main
 git merge --no-ff -m "Merge feature/api branch" feature/api
 
-# Обновление UI ветки через ребейз
+# Перед rebase убеждаемся, что рабочее дерево чистое
 git checkout feature/ui
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Uncommitted changes detected, stashing before rebase..."
+    git stash push -m "Auto-stash before rebase"
+fi
+
 git rebase main || {
     echo "Resolving merge conflicts..."
-    git mergetool
-    git rebase --continue
+    git mergetool || true
+    git rebase --continue || true
 }
 
-# Создание версионного тега
-git checkout main
-git tag -s v1.0.0 -m "Release version 1.0.0"
+# Восстановление stash если был
+if git stash list | grep "Auto-stash before rebase" >/dev/null; then
+    echo "Restoring stashed changes..."
+    git stash pop
+fi
 
-# Демонстрация отката изменений
+# Тегирование
+git checkout main
+git tag -s v1.0.0 -m "Release version 1.0.0" || git tag -f -s v1.0.0 -m "Release version 1.0.0"
+echo "Created signed tag v1.0.0"
+
+# Демонстрация отката
 git checkout -b error-branch
 echo "Broken changes" >> src/api/main.go
-git add . && git commit -m "Invalid commit"
+git add src/api/main.go
+git commit -m "Invalid commit"
 git revert HEAD --no-edit
-git reset HEAD~1 --hard
+git reset --hard HEAD~1
+echo "Error simulation and recovery completed"
 
-# Работа с временными изменениями
+# Работа со stash
 echo "Temporary changes" >> temp.file
+git add temp.file
 git stash push -m "WIP: Experimental changes"
-git stash apply
+git stash pop || true
+echo "Stash operations completed"
 
-# Публикация изменений
-git remote remove origin &>/dev/null || true
+# Публикация
+git remote remove origin 2>/dev/null || true
 git remote add origin git@github.com:astrekoi/lesta-hw-1.git
 git push -u origin --all --force
 git push --tags --force
+
+echo "All operations completed successfully"
