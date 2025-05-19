@@ -6,9 +6,16 @@ jobs:
   execute-script:
     runs-on: ubuntu-latest
     steps:
+    - name: Configure SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
     - name: Checkout code
       uses: actions/checkout@v4
-    
+      with:
+        ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
     - name: Execute automation script
       run: |
         chmod +x automation.sh
