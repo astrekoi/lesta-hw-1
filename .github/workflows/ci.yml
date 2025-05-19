@@ -17,6 +17,8 @@ jobs:
         ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: Execute automation script
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       run: |
         chmod +x automation.sh
         ./automation.sh 2>&1 | tee execution.log
