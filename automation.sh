@@ -5,18 +5,17 @@ set -eo pipefail
 git config --local user.name "Andrey Zinchenko"
 git config --local user.email "astrokoit@gmail.com"
 
-# Инициализация репозитория
 [ -d .git ] || { git init; echo "Git repository initialized"; }
 
-# Создание структуры проекта с проверкой директорий
+# Структура проекта
 mkdir -p src/{api,ui,models} tests/{unit,integration} config
 for file in src/api/main.go src/ui/index.html src/models/user.go \
             tests/unit/api_test.go tests/integration/ui_test.py \
             config/{dev.yaml,prod.yaml}; do
-    [ -f "$file" ] || touch "$file"
+    [ -f "$file" ] || { touch "$file"; echo "Created $file"; }
 done
 
-# Идемпотентное создание .gitignore
+# .gitignore
 [ -f .gitignore ] || {
     cat > .gitignore <<'EOF'
 logs/
@@ -28,9 +27,9 @@ EOF
 }
 
 # Фиксация базовой структуры
-git add . && git commit -m "Initialize project structure" --allow-empty || true
+git add . && git commit -m "chore: initial project structure [ci skip]" --allow-empty
 
-# Очистка временных веток
+# Очистка веток
 for branch in feature/api feature/ui error-branch; do
     git branch -D "$branch" 2>/dev/null || true
 done
@@ -40,40 +39,48 @@ git checkout -B main
 
 # Разработка API
 git checkout -b feature/api
-echo "// API entrypoint" > src/api/main.go
-git add src/api/main.go
-git commit -m "Initialize API module"
-
-echo "// Base routes" >> src/api/main.go
-git add src/api/main.go
-git commit -m "Add base routes"
+echo "// API v1" > src/api/main.go
+git add . && git commit -m "feat: initialize API module"
+echo "// Add routes" >> src/api/main.go
+git add . && git commit -m "feat: add base routes"
 
 # Разработка UI
 git checkout main
 git checkout -b feature/ui
-mkdir -p src/ui  # Гарантированное создание директории
-echo "<!-- Base layout -->" > src/ui/index.html
-git add src/ui/index.html
-git commit -m "Create UI structure"
-
+echo "<!-- Main layout -->" > src/ui/index.html
+git add . && git commit -m "feat: create base UI"
 echo "<!-- Navigation -->" >> src/ui/index.html
-git add src/ui/index.html
-git commit -m "Implement navigation"
+git add . && git commit -m "feat: implement navigation"
 
-# Слияние изменений
+# Слияние API
 git checkout main
-git merge --no-ff -m "Integrate API features" feature/api
+git merge --no-ff -m "chore: merge API features [ci skip]" feature/api
 
-# Обновление UI ветки
+# Ребейз UI
 git checkout feature/ui
 git rebase main || {
-    git mergetool
+    git mergetool -y
     git rebase --continue
 }
 
-# Тегирование релиза
+# Тегирование с автоинкрементом
 git checkout main
-git tag -a v1.0.0 -m "Initial release"
+LAST_TAG=$(git describe --abbrev=0 --tags 2>/dev/null || echo "v0.0.0")
+IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
+NEW_TAG="v$MAJOR.$MINOR.$((PATCH+1))"
+git tag -s $NEW_TAG -m "Release $NEW_TAG"
+
+# Имитация ошибки
+git checkout -b error-branch
+echo "BUG" >> src/api/main.go
+git add . && git commit -m "feat: broken changes"
+git revert HEAD --no-edit
+git reset HEAD~1 --hard
+
+# Работа с stash
+echo "temp" > tmp.file
+git stash push -m "WIP: temporary changes"
+git stash apply
 
 # Публикация
 git remote remove origin 2>/dev/null || true
@@ -81,4 +88,4 @@ git remote add origin git@github.com:astrekoi/lesta-hw-1.git
 git push -u origin --all --force
 git push --tags --force
 
-echo "All operations completed successfully"
+echo "[SUCCESS] All operations completed"

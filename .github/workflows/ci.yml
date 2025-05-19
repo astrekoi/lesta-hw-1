@@ -1,6 +1,11 @@
 name: CI/CD Pipeline
 
-on: [push]
+on:
+  push:
+    branches-ignore: 
+      - 'feature/**'
+    tags-ignore: 
+      - 'v*.*.*'
 
 jobs:
   execute-script:
@@ -13,6 +18,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Execute automation script
         run: |
