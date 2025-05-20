@@ -86,7 +86,7 @@ git reset HEAD~1 --hard
 
 # Работа с stash
 echo "temp" > tmp.file
-git stash push -m "WIP: temporary changes"
+git stash push -u -m "WIP: temporary changes"
 git stash apply
 
 # Публикация

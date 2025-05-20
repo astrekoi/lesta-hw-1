@@ -21,6 +21,9 @@ jobs:
           mkdir -p ~/.gnupg
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ { print $5 }' | head -n1)
+          git config --global user.signingkey "$KEY_ID"
+          git config --global commit.gpgsign true
 
       - name: Checkout code
         uses: actions/checkout@v4
