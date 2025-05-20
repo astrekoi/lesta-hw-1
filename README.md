@@ -114,7 +114,7 @@ chmod +x automation.sh
    - Статус операций со stash
 
 ### Настройки
-### 1. Секреты (GitHub Secrets)
+#### 1. Секреты (GitHub Secrets)
 
 Для корректной работы автоматизации и CI/CD были добавлены следующие секреты в репозиторий:
 
@@ -136,9 +136,7 @@ chmod +x automation.sh
 > [!NOTE] 
 > **Важно:** Приватные ключи должны быть сгенерированы специально для CI/CD и не использоваться для других целей.
 
----
-
-### 2. Deploy Keys
+#### 2. Deploy Keys
 
 Для предоставления CI/CD доступa к репозиторию по SSH был добавлен публичный ключ в Deploy Keys:
 
@@ -150,9 +148,7 @@ chmod +x automation.sh
   **Key:** содержимое публичного ключа (например, `id_ed25519.pub`)  
   **Access:** Включить опцию `Allow write access` (требуется для push).
 
----
-
-### 3. GPG-ключ для Verified Signatures
+#### 3. GPG-ключ для Verified Signatures
 
 Публичный GPG-ключ был добавлен в профиль GitHub для отображения статуса "Verified" у подписанных тегов:
 
@@ -160,9 +156,7 @@ chmod +x automation.sh
   `Settings` → `SSH and GPG keys` → `New GPG key`  
   **Value:** содержимое публичного GPG-ключа (`gpg --armor --export <KEY_ID>`)
 
----
-
-### 4. Как это работает
+#### 4. Как это работает
 
 - **SSH-ключ** позволяет workflow выполнять push/pull в репозиторий от имени CI.
 - **GPG-ключ** позволяет подписывать теги, чтобы GitHub отображал статус "Verified".
