@@ -2,8 +2,8 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches-ignore: 
-      - 'feature/**'
+    branches:
+      - main
     tags-ignore: 
       - 'v*.*.*'
 

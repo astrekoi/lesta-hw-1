@@ -29,9 +29,13 @@ EOF
 # Фиксация базовой структуры
 git add . && git commit -m "chore: initial project structure [ci skip]" --allow-empty
 
-# Очистка временных веток
+# Полная очистка временных веток (локальных и удаленных)
 for branch in feature/api feature/ui error-branch; do
+    # Удаление локальной ветки
     git branch -D "$branch" 2>/dev/null || true
+    
+    # Удаление ветки на удаленном репозитории
+    git push origin --delete "$branch" 2>/dev/null || true
 done
 
 # Основной workflow
@@ -77,8 +81,8 @@ else
     echo "Fallback to unsigned tag $NEW_TAG"
 fi
 
-# Имитация ошибки
-git checkout -b error-branch
+# Имитация ошибки (с гарантированным созданием ветки)
+git checkout -B error-branch main
 echo "BUG" >> src/api/main.go
 git add . && git commit -m "feat: broken changes"
 git revert HEAD --no-edit
@@ -89,7 +93,7 @@ echo "temp" > tmp.file
 git stash push -u -m "WIP: temporary changes"
 git stash apply
 
-# Публикация
+# Публикация (с принудительным обновлением всех веток)
 git remote remove origin 2>/dev/null || true
 git remote add origin git@github.com:astrekoi/lesta-hw-1.git
 git push -u origin --all --force
