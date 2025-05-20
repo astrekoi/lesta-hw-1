@@ -109,10 +109,7 @@ git stash list
 # Публикация
 git remote remove origin 2>/dev/null || true
 git remote add origin git@github.com:astrekoi/lesta-hw-1.git
-git push -u origin main
-for branch in feature/api feature/ui error-branch; do
-  git push origin "$branch" --force
-done
+git push -u origin --all
 git push --tags --force
 
 echo "[SUCCESS] All operations completed"
