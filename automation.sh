@@ -1,22 +1,29 @@
 #!/bin/bash
 set -eo pipefail
+trap 'echo "[ERROR] Script failed at line $LINENO"; exit 1' ERR
 
-# Конфигурация пользователя
+echo "== [START] Git automation script =="
+
+echo "== [CONFIG] Setting user name and email =="
 git config --local user.name "Andrey Zinchenko"
 git config --local user.email "astrokoit@gmail.com"
 
-[ -d .git ] || { git init; echo "Git repository initialized"; }
+if [ ! -d .git ]; then
+    git init
+    echo "== [INIT] Git repository initialized =="
+else
+    echo "== [INIT] Git repository already exists =="
+fi
 
-# Создание структуры проекта
+echo "== [STRUCTURE] Creating project directories and files =="
 mkdir -p src/{api,ui,models} tests/{unit,integration} config
 for file in src/api/main.go src/ui/index.html src/models/user.go \
             tests/unit/api_test.go tests/integration/ui_test.py \
-            config/{dev.yaml,prod.yaml}; do
+            config/dev.yaml config/prod.yaml; do
     [ -f "$file" ] || { touch "$file"; echo "Created $file"; }
 done
 
-# Настройка .gitignore
-[ -f .gitignore ] || {
+if [ ! -f .gitignore ]; then
     cat > .gitignore <<'EOF'
 logs/
 *.log
@@ -24,31 +31,30 @@ logs/
 .env
 EOF
     echo ".gitignore created"
-}
+else
+    echo ".gitignore already exists"
+fi
 
-# Фиксация базовой структуры
+echo "== [COMMIT] Committing initial project structure =="
 git add . && git commit -m "chore: initial project structure [ci skip]" --allow-empty
 
-# Полная очистка временных веток (локальных и удаленных)
+echo "== [CLEANUP] Deleting old branches (local and remote) =="
 for branch in feature/api feature/ui error-branch; do
-    # Удаление локальной ветки
     git branch -D "$branch" 2>/dev/null || true
-    
-    # Удаление ветки на удаленном репозитории
     git push origin --delete "$branch" 2>/dev/null || true
 done
 
-# Основной workflow
+echo "== [BRANCH] Switching to main =="
 git checkout -B main
 
-# Разработка API
+echo "== [API] Creating feature/api branch and commits =="
 git checkout -b feature/api
 echo "// API v1" > src/api/main.go
 git add . && git commit -m "feat: initialize API module"
 echo "// Add routes" >> src/api/main.go
 git add . && git commit -m "feat: add base routes"
 
-# Разработка UI
+echo "== [UI] Creating feature/ui branch and commits =="
 git checkout main
 git checkout -b feature/ui
 echo "<!-- Main layout -->" > src/ui/index.html
@@ -56,33 +62,30 @@ git add . && git commit -m "feat: create base UI"
 echo "<!-- Navigation -->" >> src/ui/index.html
 git add . && git commit -m "feat: implement navigation"
 
-# Слияние изменений
+echo "== [MERGE] Merging feature/api into main =="
 git checkout main
 git merge --no-ff -m "chore: merge API features [ci skip]" feature/api
 
-# Ребейз UI ветки
+echo "== [REBASE] Rebasing feature/ui onto main =="
 git checkout feature/ui
 git rebase main || {
+    echo "[CONFLICT] Launching mergetool"
     git mergetool -y
     git rebase --continue
 }
 
-# Тегирование с автоинкрементом и GPG
+echo "== [TAGGING] Checking and creating new tag =="
 git checkout main
-
-# Определение последнего тега начиная с 1.0.0
 LAST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
-
-# Если тегов нет - начинаем с 1.0.0
 if [ -z "$LAST_TAG" ]; then
     NEW_TAG="v1.0.0"
+    echo "No tags found, creating $NEW_TAG"
 else
-    # Парсим компоненты версии
     IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
     NEW_TAG="v$MAJOR.$MINOR.$((PATCH+1))"
+    echo "Last tag: $LAST_TAG, new tag: $NEW_TAG"
 fi
 
-# Создание тега
 if git tag -s "$NEW_TAG" -m "Release $NEW_TAG" 2>/dev/null; then
     echo "Signed tag $NEW_TAG created"
 else
@@ -90,14 +93,14 @@ else
     echo "Fallback to unsigned tag $NEW_TAG"
 fi
 
-# Имитация ошибки (с гарантированным созданием ветки)
+echo "== [ERROR-BRANCH] Simulating error and recovery =="
 git checkout -B error-branch main
 echo "BUG" >> src/api/main.go
 git add . && git commit -m "feat: broken changes"
 git revert HEAD --no-edit
 git reset HEAD~1 --hard
 
-# Работа с stash
+echo "== [STASH] Creating and applying stash =="
 echo "temp" > tmp.file
 git stash push -u -m "WIP: temporary changes"
 echo "=== STASH LIST BEFORE APPLY ==="
@@ -106,10 +109,13 @@ git stash apply
 echo "=== STASH LIST AFTER APPLY ==="
 git stash list
 
-# Публикация
+echo "== [PUSH] Publishing all branches and tags =="
 git remote remove origin 2>/dev/null || true
 git remote add origin git@github.com:astrekoi/lesta-hw-1.git
-git push -u origin --all
+git push -u origin main
+for branch in feature/api feature/ui error-branch; do
+  git push origin "$branch" --force
+done
 git push --tags --force
 
 echo "[SUCCESS] All operations completed"
