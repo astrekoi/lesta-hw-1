@@ -76,7 +76,7 @@ git rebase main || {
 
 echo "== [TAGGING] Checking and creating new tag =="
 git checkout main
-LAST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+LAST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
 if [ -z "$LAST_TAG" ]; then
     NEW_TAG="v1.0.0"
     echo "No tags found, creating $NEW_TAG"
