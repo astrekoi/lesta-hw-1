@@ -7,7 +7,7 @@ git config --local user.email "astrokoit@gmail.com"
 
 [ -d .git ] || { git init; echo "Git repository initialized"; }
 
-# Структура проекта
+# Создание структуры проекта
 mkdir -p src/{api,ui,models} tests/{unit,integration} config
 for file in src/api/main.go src/ui/index.html src/models/user.go \
             tests/unit/api_test.go tests/integration/ui_test.py \
@@ -15,7 +15,7 @@ for file in src/api/main.go src/ui/index.html src/models/user.go \
     [ -f "$file" ] || { touch "$file"; echo "Created $file"; }
 done
 
-# .gitignore
+# Настройка .gitignore
 [ -f .gitignore ] || {
     cat > .gitignore <<'EOF'
 logs/
@@ -29,7 +29,7 @@ EOF
 # Фиксация базовой структуры
 git add . && git commit -m "chore: initial project structure [ci skip]" --allow-empty
 
-# Очистка веток
+# Очистка временных веток
 for branch in feature/api feature/ui error-branch; do
     git branch -D "$branch" 2>/dev/null || true
 done
@@ -52,23 +52,30 @@ git add . && git commit -m "feat: create base UI"
 echo "<!-- Navigation -->" >> src/ui/index.html
 git add . && git commit -m "feat: implement navigation"
 
-# Слияние API
+# Слияние изменений
 git checkout main
 git merge --no-ff -m "chore: merge API features [ci skip]" feature/api
 
-# Ребейз UI
+# Ребейз UI ветки
 git checkout feature/ui
 git rebase main || {
     git mergetool -y
     git rebase --continue
 }
 
-# Тегирование с автоинкрементом
+# Тегирование с автоинкрементом и GPG
 git checkout main
 LAST_TAG=$(git describe --abbrev=0 --tags 2>/dev/null || echo "v0.0.0")
 IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
 NEW_TAG="v$MAJOR.$MINOR.$((PATCH+1))"
-git tag -s $NEW_TAG -m "Release $NEW_TAG"
+
+# Попытка подписать тег с обработкой ошибок
+if git tag -s "$NEW_TAG" -m "Release $NEW_TAG" 2>/dev/null; then
+    echo "Signed tag $NEW_TAG created"
+else
+    git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+    echo "Fallback to unsigned tag $NEW_TAG"
+fi
 
 # Имитация ошибки
 git checkout -b error-branch
