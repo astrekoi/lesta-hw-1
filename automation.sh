@@ -69,15 +69,23 @@ git rebase main || {
 
 # Тегирование с автоинкрементом и GPG
 git checkout main
+
+# Удаление существующих тегов локально и на удаленном репозитории
 LAST_TAG=$(git describe --abbrev=0 --tags 2>/dev/null || echo "v0.0.0")
+if [ "$LAST_TAG" != "v0.0.0" ]; then
+    git tag -d "$LAST_TAG" 2>/dev/null || true
+    git push --delete origin "$LAST_TAG" 2>/dev/null || true
+fi
+
+# Определение новой версии
 IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
 NEW_TAG="v$MAJOR.$MINOR.$((PATCH+1))"
 
-# Попытка подписать тег с обработкой ошибок
-if git tag -s "$NEW_TAG" -m "Release $NEW_TAG" 2>/dev/null; then
+# Создание тега с принудительной перезаписью
+if git tag -s "$NEW_TAG" -m "Release $NEW_TAG" --force 2>/dev/null; then
     echo "Signed tag $NEW_TAG created"
 else
-    git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+    git tag -a "$NEW_TAG" -m "Release $NEW_TAG" --force
     echo "Fallback to unsigned tag $NEW_TAG"
 fi
 
