@@ -70,22 +70,23 @@ git rebase main || {
 # Тегирование с автоинкрементом и GPG
 git checkout main
 
-# Удаление существующих тегов локально и на удаленном репозитории
-LAST_TAG=$(git describe --abbrev=0 --tags 2>/dev/null || echo "v0.0.0")
-if [ "$LAST_TAG" != "v0.0.0" ]; then
-    git tag -d "$LAST_TAG" 2>/dev/null || true
-    git push --delete origin "$LAST_TAG" 2>/dev/null || true
+# Определение последнего тега начиная с 1.0.0
+LAST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+
+# Если тегов нет - начинаем с 1.0.0
+if [ -z "$LAST_TAG" ]; then
+    NEW_TAG="v1.0.0"
+else
+    # Парсим компоненты версии
+    IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
+    NEW_TAG="v$MAJOR.$MINOR.$((PATCH+1))"
 fi
 
-# Определение новой версии
-IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
-NEW_TAG="v$MAJOR.$MINOR.$((PATCH+1))"
-
-# Создание тега с принудительной перезаписью
-if git tag -s "$NEW_TAG" -m "Release $NEW_TAG" --force 2>/dev/null; then
+# Создание тега
+if git tag -s "$NEW_TAG" -m "Release $NEW_TAG" 2>/dev/null; then
     echo "Signed tag $NEW_TAG created"
 else
-    git tag -a "$NEW_TAG" -m "Release $NEW_TAG" --force
+    git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
     echo "Fallback to unsigned tag $NEW_TAG"
 fi
 
@@ -99,12 +100,16 @@ git reset HEAD~1 --hard
 # Работа с stash
 echo "temp" > tmp.file
 git stash push -u -m "WIP: temporary changes"
+echo "=== STASH LIST BEFORE APPLY ==="
+git stash list
 git stash apply
+echo "=== STASH LIST AFTER APPLY ==="
+git stash list
 
-# Публикация (с принудительным обновлением всех веток)
+# Публикация
 git remote remove origin 2>/dev/null || true
 git remote add origin git@github.com:astrekoi/lesta-hw-1.git
-git push -u origin --all --force
-git push --tags --force
+git push -u origin --all
+git push --tags
 
 echo "[SUCCESS] All operations completed"
